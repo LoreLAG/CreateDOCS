@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 generate_flowchart.py
-Genera un flow chart Excel (.xlsm) a partire da un elenco di fasi di produzione,
-includendo la data di generazione sotto la freccia direzionale.
+Generates an Excel flow chart (.xlsm) from a list of production phases,
+including the generation date under the directional arrow.
 """
 
 import zipfile
@@ -13,21 +13,21 @@ import argparse
 from datetime import datetime
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CONFIGURA QUI LE FASI (usato quando si esegue lo script direttamente)
+# CONFIGURE PHASES HERE (used when executing the script directly)
 # ─────────────────────────────────────────────────────────────────────────────
 PHASES_DATA = [
     {"number": 10, "phase": "Raw Material", "ext_int": "External", "department": "Supplier"},
     {"number": 20, "phase": "Heat Treatment", "ext_int": "Internal", "department": "HT Dpt."},
     {"number": 30, "phase": "Grinding", "ext_int": "Internal", "department": "Grinding Dpt.",
-     "note": "Fare attenzione ai diametri"},
-    {"number": 40, "phase": "Trattamento superficiale", "ext_int": "External", "department": "Supplier"},
-    {"number": 50, "phase": "Assemblaggio", "ext_int": "Internal", "department": "Assembly"},
-    {"number": 60, "phase": "Collaudo finale", "ext_int": "Internal", "department": "Quality",
-     "note": "100% controllo visivo"},
-    {"number": 70, "phase": "Spedizione", "ext_int": "Internal", "department": "Logistics"},
+     "note": "Pay attention to diameters"},
+    {"number": 40, "phase": "Surface Treatment", "ext_int": "External", "department": "Supplier"},
+    {"number": 50, "phase": "Assembly", "ext_int": "Internal", "department": "Assembly"},
+    {"number": 60, "phase": "Final Testing", "ext_int": "Internal", "department": "Quality",
+     "note": "100% visual inspection"},
+    {"number": 70, "phase": "Shipping", "ext_int": "Internal", "department": "Logistics"},
 ]
 
-PRODUCT_TITLE = "NOME PRODOTTO"
+PRODUCT_TITLE = "PRODUCT NAME"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -45,16 +45,16 @@ def _roundrect_shape(shape_id, name, col_from, col_to, row_from, row_to,
 <xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="{name}"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
 <xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1" cy="1"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:noFill/></xdr:spPr>
 <xdr:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="15000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></xdr:style>
-<xdr:txBody><a:bodyPr vertOverflow="clip" horzOverflow="clip" rtlCol="0" anchor="t"/><a:lstStyle/><a:p><a:pPr algn="l"/><a:endParaRPr lang="it-IT" sz="1100"/></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>"""
+<xdr:txBody><a:bodyPr vertOverflow="clip" horzOverflow="clip" rtlCol="0" anchor="t"/><a:lstStyle/><a:p><a:pPr algn="l"/><a:endParaRPr lang="en-GB" sz="1100"/></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>"""
 
 
 def _arrow_shape(n_phases):
     row_end = 5 + 3 * n_phases
-    # SOLUZIONE FINALE: wrap="square" + normAutofit + spazio unificatore (&#160;) nel testo
+    # FINAL SOLUTION: wrap="square" + normAutofit + non-breaking space (&#160;) in text
     return f"""<xdr:twoCellAnchor>
 <xdr:from><xdr:col>8</xdr:col><xdr:colOff>446314</xdr:colOff><xdr:row>4</xdr:row><xdr:rowOff>16329</xdr:rowOff></xdr:from>
 <xdr:to><xdr:col>12</xdr:col><xdr:colOff>234043</xdr:colOff><xdr:row>{row_end}</xdr:row><xdr:rowOff>13607</xdr:rowOff></xdr:to>
-<xdr:sp macro="[0]!Frecciadinamica" textlink=""><xdr:nvSpPr><xdr:cNvPr id="25" name="Frecciadinamica" descr="Production Flow"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr><a:spLocks/></xdr:cNvSpPr></xdr:nvSpPr>
+<xdr:sp macro="[0]!DynamicArrow" textlink=""><xdr:nvSpPr><xdr:cNvPr id="25" name="DynamicArrow" descr="Production Flow"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr><a:spLocks/></xdr:cNvSpPr></xdr:nvSpPr>
 <xdr:spPr><a:xfrm><a:off x="9984921" y="2628900"/><a:ext cx="2128158" cy="7181850"/></a:xfrm><a:prstGeom prst="downArrow"><a:avLst><a:gd name="adj1" fmla="val 50000"/><a:gd name="adj2" fmla="val 41593"/></a:avLst></a:prstGeom><a:solidFill><a:schemeClr val="bg1"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln><a:solidFill><a:schemeClr val="bg2"><a:lumMod val="75000"/></a:schemeClr></a:solidFill></a:ln></xdr:spPr>
 <xdr:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="15000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></xdr:style>
 <xdr:txBody><a:bodyPr vert="vert270" wrap="square" vertOverflow="clip" horzOverflow="clip" rtlCol="0" anchor="ctr"><a:normAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-GB" sz="3200" b="1"><a:latin typeface="Times New Roman"/><a:cs typeface="Times New Roman"/></a:rPr><a:t>PRODUCTION&#160;FLOW</a:t></a:r></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>"""
@@ -71,12 +71,12 @@ def _title_box(product_title):
     return f"""<xdr:twoCellAnchor>
 <xdr:from><xdr:col>1</xdr:col><xdr:colOff>1250769</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>239487</xdr:rowOff></xdr:from>
 <xdr:to><xdr:col>8</xdr:col><xdr:colOff>598714</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>284988</xdr:rowOff></xdr:to>
-<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="110" name="Rettangolo arrotondato 27"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
+<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="110" name="Rounded rectangle 27"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
 <xdr:spPr><a:xfrm><a:off x="1860369" y="239487"/><a:ext cx="8600802" cy="698644"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="bg1"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln w="9525"><a:solidFill><a:schemeClr val="bg2"><a:lumMod val="90000"/></a:schemeClr></a:solidFill><a:bevel/></a:ln></xdr:spPr>
 <xdr:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></xdr:style>
 <xdr:txBody><a:bodyPr wrap="square" anchor="ctr"/><a:lstStyle/>
 <a:p><a:pPr algn="ctr"><a:defRPr/></a:pPr><a:r><a:rPr lang="en-GB" sz="1400" b="1"><a:latin typeface="Times New Roman" panose="02020603050405020304" pitchFamily="18" charset="0"/><a:cs typeface="Times New Roman" panose="02020603050405020304" pitchFamily="18" charset="0"/></a:rPr><a:t>PRODUCTION FLOW CHART</a:t></a:r></a:p>
-<a:p><a:pPr algn="ctr"><a:defRPr/></a:pPr><a:r><a:rPr lang="it-IT" sz="2000" b="1"><a:latin typeface="Times New Roman" panose="02020603050405020304" pitchFamily="18" charset="0"/><a:cs typeface="Times New Roman" panose="02020603050405020304" pitchFamily="18" charset="0"/></a:rPr><a:t>{product_title}</a:t></a:r></a:p>
+<a:p><a:pPr algn="ctr"><a:defRPr/></a:pPr><a:r><a:rPr lang="en-GB" sz="2000" b="1"><a:latin typeface="Times New Roman" panose="02020603050405020304" pitchFamily="18" charset="0"/><a:cs typeface="Times New Roman" panose="02020603050405020304" pitchFamily="18" charset="0"/></a:rPr><a:t>{product_title}</a:t></a:r></a:p>
 </xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>"""
 
 
@@ -84,7 +84,7 @@ def _phases_banner():
     return """<xdr:twoCellAnchor>
 <xdr:from><xdr:col>1</xdr:col><xdr:colOff>10885</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>423562</xdr:rowOff></xdr:from>
 <xdr:to><xdr:col>8</xdr:col><xdr:colOff>587828</xdr:colOff><xdr:row>3</xdr:row><xdr:rowOff>348344</xdr:rowOff></xdr:to>
-<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="109" name="Rettangolo arrotondato 26"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{3A41C090-7145-47FF-9440-C8C121CF7DBF}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
+<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="109" name="Rounded rectangle 26"><a:extLst><a:ext uri="{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{3A41C090-7145-47FF-9440-C8C121CF7DBF}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
 <xdr:spPr><a:xfrm><a:off x="620485" y="1076705"/><a:ext cx="9829800" cy="1231068"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="bg1"><a:lumMod val="75000"/></a:schemeClr></a:solidFill><a:ln w="9525"><a:solidFill><a:schemeClr val="bg2"/></a:solidFill></a:ln></xdr:spPr>
 <xdr:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></xdr:style>
 <xdr:txBody><a:bodyPr wrap="square" anchor="ctr"/><a:lstStyle/>
@@ -93,7 +93,7 @@ def _phases_banner():
 
 
 def _notes_box(notes_list, start_row):
-    """Genera il riquadro grafico 'Additional remarks:' in fondo al Flow Chart."""
+    """Generates the 'Additional remarks:' graphic box at the bottom of the Flow Chart."""
     paragraphs = [
         '<a:p><a:pPr algn="l"><a:defRPr/></a:pPr><a:r><a:rPr lang="en-GB" sz="2000" b="1"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="Times New Roman"/><a:cs typeface="Times New Roman"/></a:rPr><a:t>Additional remarks:</a:t></a:r></a:p>'
     ]
@@ -110,7 +110,7 @@ def _notes_box(notes_list, start_row):
     return f"""<xdr:twoCellAnchor>
 <xdr:from><xdr:col>1</xdr:col><xdr:colOff>10000</xdr:colOff><xdr:row>{start_row}</xdr:row><xdr:rowOff>100000</xdr:rowOff></xdr:from>
 <xdr:to><xdr:col>8</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{end_row}</xdr:row><xdr:rowOff>100000</xdr:rowOff></xdr:to>
-<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="Riquadro Note"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
+<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="Notes Box"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
 <xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:schemeClr val="bg1"/></a:solidFill><a:ln w="9525"><a:solidFill><a:schemeClr val="tx1"><a:lumMod val="50000"/></a:schemeClr></a:solidFill><a:bevel/></a:ln></xdr:spPr>
 <xdr:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></xdr:style>
 <xdr:txBody><a:bodyPr wrap="square" anchor="t" lIns="91440" tIns="91440" rIns="91440" bIns="91440"/><a:lstStyle/>
@@ -119,13 +119,13 @@ def _notes_box(notes_list, start_row):
 
 
 def _date_box(date_str, start_row):
-    """Genera un box di testo trasparente con la data sotto la punta della freccia."""
+    """Generates a transparent text box with the date under the arrowhead."""
     end_row = start_row + 1
     shape_id = 2000 + start_row
     return f"""<xdr:twoCellAnchor>
 <xdr:from><xdr:col>8</xdr:col><xdr:colOff>446314</xdr:colOff><xdr:row>{start_row}</xdr:row><xdr:rowOff>150000</xdr:rowOff></xdr:from>
 <xdr:to><xdr:col>12</xdr:col><xdr:colOff>234043</xdr:colOff><xdr:row>{end_row}</xdr:row><xdr:rowOff>150000</xdr:rowOff></xdr:to>
-<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="Data Aggiornamento"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
+<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="Update Date"><a:extLst><a:ext uri="{{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}}"><a16:creationId xmlns:a16="http://schemas.microsoft.com/office/drawing/2014/main" id="{{{_new_id()}}}"/></a:ext></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>
 <xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></xdr:spPr>
 <xdr:style><a:lnRef idx="0"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="0"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></xdr:style>
 <xdr:txBody><a:bodyPr wrap="square" anchor="ctr" lIns="0" tIns="0" rIns="0" bIns="0"/><a:lstStyle/>
@@ -133,7 +133,7 @@ def _date_box(date_str, start_row):
 </xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>"""
 
 
-# ── Costruzione del file ──────────────────────────────────────────────────────
+# ── File Construction ─────────────────────────────────────────────────────────
 
 def build_drawing_xml(phases, product_title):
     ns = (
@@ -153,7 +153,7 @@ def build_drawing_xml(phases, product_title):
 
     parts.append(_arrow_shape(len(phases)))
 
-    # Shapes per ogni fase
+    # Shapes for each phase
     sid = 100
     notes_list = []
 
@@ -167,21 +167,21 @@ def build_drawing_xml(phases, product_title):
         parts.append(_roundrect_shape(sid + 3, f"Op{i}_Dept", 7, 8, draw_row, draw_row + 1, col_off=8467, row_off_to=1))
         sid += 4
 
-        # Intercettiamo le note e le formattiamo
+        # Intercept and format notes
         note_text = phase.get("note", "").strip()
         if note_text:
             notes_list.append(f"* Op. {phase.get('number')} ({phase.get('phase')}): {note_text}")
 
-    # --- DATA E NOTE ---
+    # --- DATE AND NOTES ---
 
-    # La freccia finisce esattamente a questa riga
+    # The arrow ends exactly at this row
     row_end_arrow = 5 + 3 * len(phases)
 
-    # Inserisce la data odierna posizionata alla fine della freccia
+    # Inserts today's date positioned at the end of the arrow
     current_date = datetime.now().strftime("%d/%m/%Y")
     parts.append(_date_box(current_date, row_end_arrow))
 
-    # Aggiunge il box Note alla fine (spostato leggermente più in giù per non accavallarsi)
+    # Adds the Notes box at the end (moved slightly lower to avoid overlapping)
     if notes_list:
         row_start_notes = row_end_arrow + 2
         parts.append(_notes_box(notes_list, row_start_notes))
@@ -223,7 +223,7 @@ def build_sheet_xml(phases):
         ei = phase.get("ext_int", "")
         dep = phase.get("department", "")
 
-        # Aggiunge magicamente l'asterisco se la fase ha una nota
+        # Magically adds the asterisk if the phase has a note
         if phase.get("note", "").strip():
             ph += " *"
 
@@ -248,7 +248,7 @@ def build_sheet_xml(phases):
            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
            xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac"
            mc:Ignorable="x14ac">
-  <sheetPr codeName="Foglio1"><tabColor theme="0"/></sheetPr>
+  <sheetPr codeName="Sheet1"><tabColor theme="0"/></sheetPr>
   <dimension ref="{dim_ref}"/>
   <sheetViews>
     <sheetView showGridLines="0" tabSelected="1" zoomScale="70" zoomScaleNormal="70" workbookViewId="0">
@@ -303,15 +303,15 @@ def generate(template_path, output_path, phases, title=None):
                 zout.writestr(item, zin.read(item.filename))
 
     os.replace(tmp, output_path)
-    print(f"✅ Flow Chart generato: {output_path} ({len(phases)} fasi)")
+    print(f"✅ Flow Chart generated: {output_path} ({len(phases)} phases)")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Genera flow chart Excel da fasi di produzione")
-    parser.add_argument("--template", default="TEMPLATE_FLOW_CHART.xlsm", help="Percorso del template .xlsm")
-    parser.add_argument("--output", default="flow_chart_output.xlsm", help="File di output")
-    parser.add_argument("--title", default=None, help="Sottotitolo del flow chart")
+    parser = argparse.ArgumentParser(description="Generates Excel flow chart from production phases")
+    parser.add_argument("--template", default="TEMPLATE_FLOW_CHART.xlsm", help=".xlsm template path")
+    parser.add_argument("--output", default="flow_chart_output.xlsm", help="Output file")
+    parser.add_argument("--title", default=None, help="Flow chart subtitle")
     args = parser.parse_args()
 
-    # Test con poche fasi per verificare l'autofit
+    # Test with a few phases to verify autofit
     generate(template_path=args.template, output_path=args.output, phases=PHASES_DATA[:2], title=args.title)
