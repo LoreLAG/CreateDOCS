@@ -14,8 +14,8 @@ import openpyxl
 from generate_flowchart import generate as generate_fc
 from generate_fmea import generate_fmea
 from generate_cp import generate_cp
-from LeggiMasterFMEA import format_masters_db
-from LeggiMasterCP import format_master_cp_db
+from ReadMASTERFMEA import format_masters_db
+from ReadMASTERCP import format_master_cp_db
 
 # Necessario per mostrare l'icona personalizzata nella taskbar di Windows
 try:
