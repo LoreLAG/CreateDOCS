@@ -7,36 +7,36 @@ from datetime import datetime
 from thefuzz import process
 
 
-def trova_fase_ufficiale(input_utente, fasi_ufficiali):
-    scelta = input_utente.strip().lower()
-    for fase in fasi_ufficiali:
-        if scelta == str(fase).strip().lower():
-            return fase
-    if fasi_ufficiali:
-        miglior_match, punteggio = process.extractOne(input_utente, fasi_ufficiali)
-        if punteggio >= 85:
-            return miglior_match
-    return input_utente.strip()
+def find_official_phase(user_input, official_phases):
+    choice = user_input.strip().lower()
+    for phase in official_phases:
+        if choice == str(phase).strip().lower():
+            return phase
+    if official_phases:
+        best_match, score = process.extractOne(user_input, official_phases)
+        if score >= 85:
+            return best_match
+    return user_input.strip()
 
 
 def generate_fmea(template_path, masters_path, output_path, phases, title=None, rev="00", customer_only=False):
     if not os.path.exists(masters_path):
-        raise FileNotFoundError(f"Database MASTERS non trovato: {masters_path}")
+        raise FileNotFoundError(f"MASTERS Database not found: {masters_path}")
     if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Template FMEA non trovato: {template_path}")
+        raise FileNotFoundError(f"FMEA Template not found: {template_path}")
 
-    # FILTRO FASI SE È VERSIONE CLIENTE
+    # FILTER PHASES IF IT IS CUSTOMER VERSION
     if customer_only:
         phases = [p for p in phases if p.get('is_customer', False)]
         if not phases:
-            return  # Se non ci sono fasi cliente, esce senza creare il file
+            return  # If there are no customer phases, exit without creating the file
 
-    df_master = pd.read_excel(masters_path, sheet_name='database_funzionale')
+    df_master = pd.read_excel(masters_path, sheet_name='functional_database')
     df_master = df_master.dropna(how='all')
     phase_col = df_master.columns[0]
     master_cols_count = len(df_master.columns)
 
-    fasi_ufficiali_db = df_master[phase_col].dropna().astype(str).str.strip().unique().tolist()
+    official_db_phases = df_master[phase_col].dropna().astype(str).str.strip().unique().tolist()
 
     fmea_rows = []
     merge_blocks = []
@@ -46,7 +46,7 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
     for phase_info in phases:
         display_name_raw = phase_info['phase']
         input_phase_name = phase_info.get('base_phase', display_name_raw)
-        phase_name_db = trova_fase_ufficiale(input_phase_name, fasi_ufficiali_db)
+        db_phase_name = find_official_phase(input_phase_name, official_db_phases)
         op_num = phase_info['number']
         note = phase_info.get('note', '').strip()
 
@@ -55,7 +55,7 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
             display_phase_name += " *"
             notes_to_append.append(f"* Op. {op_num} ({display_name_raw.upper()}): {note}")
 
-        mask = df_master[phase_col].astype(str).str.strip().str.lower() == phase_name_db.strip().lower()
+        mask = df_master[phase_col].astype(str).str.strip().str.lower() == db_phase_name.strip().lower()
         matched = df_master[mask]
 
         if matched.empty:
@@ -80,7 +80,7 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
     wb = openpyxl.load_workbook(template_path)
     ws = wb.active
 
-    # RINOMINA IL FOGLIO IN BASE ALLA VERSIONE
+    # RENAME SHEET BASED ON VERSION
     ws.title = "FMEA CUST" if customer_only else "FMEA"
 
     start_row = 5
@@ -92,14 +92,14 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
         for n in notes_to_append:
             fmea_rows.append(["", n] + [""] * (template_cols - 2))
 
-    oggi = datetime.now().strftime("%d/%m/%Y")
+    today = datetime.now().strftime("%d/%m/%Y")
     try:
-        ws['N3'].value = f"Date: {oggi}"
+        ws['N3'].value = f"Date: {today}"
         ws['N3'].font = Font(name='Calibri Light', size=14, bold=True, scheme=None)
     except AttributeError:
         pass
 
-    if title and title != "NOME PRODOTTO":
+    if title and title != "PRODUCT NAME":
         try:
             ws['C2'].value = title
             ws['C2'].font = Font(name='Calibri Light', size=14, bold=True, scheme=None)
@@ -125,7 +125,8 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
             col_num = c_idx + 1
             cell = ws.cell(row=excel_row, column=col_num)
 
-            if type(cell).__name__ == 'MergedCell': continue
+            if type(cell).__name__ == 'MergedCell':
+                continue
 
             if is_note:
                 cell.value = row_data[c_idx] if c_idx < len(row_data) else ""
@@ -158,7 +159,7 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
             new_font = copy(current_font)
             new_font.bold = False
             new_font.name = 'Calibri Light'
-            new_font.scheme = None # Aggiunto scollegamento tema!
+            new_font.scheme = None  # Added theme decoupling!
             cell.font = new_font
 
             source_alignment = ws.cell(row=5, column=col_num).alignment
@@ -180,7 +181,8 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
         for r in range(start_excel_row, end_excel_row + 1):
             for c in range(1, template_cols + 1):
                 cell = ws.cell(row=r, column=c)
-                if type(cell).__name__ == 'MergedCell': continue
+                if type(cell).__name__ == 'MergedCell':
+                    continue
 
                 cb = cell.border or Border()
                 new_left = default_side
@@ -213,7 +215,7 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
         for r in range(note_start_row, note_start_row + len(notes_to_append) + 1):
             ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=template_cols)
 
-    # --- FORZATURA FONT GLOBALE: BLOCCO ANTI-APTOS FINALE ---
+    # --- GLOBAL FONT FORCING: FINAL ANTI-APTOS BLOCK ---
     for row in ws.iter_rows():
         for cell in row:
             if type(cell).__name__ == 'MergedCell':
@@ -221,7 +223,7 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
             if cell.font:
                 new_font = copy(cell.font)
                 new_font.name = 'Calibri Light'
-                new_font.scheme = None # Rimozione totale dell'eredità del tema
+                new_font.scheme = None  # Total removal of theme inheritance
                 cell.font = new_font
             else:
                 cell.font = Font(name='Calibri Light', scheme=None)
@@ -233,4 +235,4 @@ def generate_fmea(template_path, masters_path, output_path, phases, title=None, 
     ws.print_title_rows = '1:4'
 
     wb.save(output_path)
-    print(f"✅ FMEA generato in: {output_path}")
+    print(f"✅ FMEA generated in: {output_path}")
